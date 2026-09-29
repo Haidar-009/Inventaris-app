@@ -16,7 +16,7 @@ Aplikasi web untuk membantu pendataan inventaris barang di gudang sekolah (sarpr
 
 ## Teknologi
 
-PHP (OOP), MySQL, HTML, CSS, JavaScript, Boxicons.
+PHP, MySQL, HTML, CSS, JavaScript, Boxicons.
 
 ## Cara Clone / Pull
 
