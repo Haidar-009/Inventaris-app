@@ -174,10 +174,22 @@
         }
 
         .nav-links a { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            gap: 8px; 
             color: #6b707c; 
-            font-size: 22px; 
             text-decoration: none; 
             transition: 0.3s; 
+        }
+
+        .nav-links a i {
+            font-size: 24px; /* Ukuran khusus ikon */
+        }
+
+        .nav-links a span {
+            font-size: 12px; /* Ukuran khusus teks menu */
+            font-weight: 500;
         }
 
         .nav-links a:hover, 
@@ -491,15 +503,26 @@
 <body>
 
     <div class="app-wrapper">
-        
         <!-- SIDEBAR -->
         <div class="sidebar">
             <div class="logo-box"><i class='bx bx-layer'></i></div>
             <div class="nav-links">
-                <a href="index.php" class="active" title="Beranda"><i class='bx bxs-grid-alt'></i></a>
-                <a href="CRUD/pendataan.php" title="Pendataan Barang"><i class='bx bx-folder'></i></a>
-                <a href="CRUD/read.php" title="Statistik & Data"><i class='bx bx-bar-chart-alt-2'></i></a>
-                <a href="CRUD/update.php" title="Update Data"><i class='bx bx-cube'></i></a>
+                <a href="index.php" class="active" title="Beranda">
+                    <i class='bx bxs-grid-alt'></i>
+                    <span>Beranda</span>
+                </a>
+                <a href="CRUD/pendataan.php" title="Pendataan Barang">
+                    <i class='bx bx-folder'></i>
+                    <span>Pendataan</span>
+                </a>
+                <a href="CRUD/read.php" title="Statistik & Data">
+                    <i class='bx bx-bar-chart-alt-2'></i>
+                    <span>Statistik</span>
+                </a>
+                <a href="CRUD/update.php" title="Update Data">
+                    <i class='bx bx-cube'></i>
+                    <span>Update</span>
+                </a>
             </div>
             <a href="logout.php" class="logout" title="Logout" onclick="return confirm('Yakin ingin keluar?')">
                 <i class='bx bx-log-out'></i>
@@ -582,8 +605,8 @@
 
                     <div class="list-header">
                         <span>Nama Barang</span>
-                        <span>Trx / Kuantitas</span>
-                        <span>Sisa Stok</span>
+                        <span>Jenis transaksi</span>
+                        <span>Kuantitas</span>
                         <span>Tgl Transaksi</span>
                     </div>
 
@@ -606,9 +629,6 @@
                                 $icon = "bx-up-arrow-alt"; // Icon panah ke atas (keluar)
                             }
 
-                            // Menentukan Warna Status Sisa Stok
-                            $status_class = ($row['Stok'] < 5) ? 'minus' : 'plus';
-                            $teks_status = ($row['Stok'] < 5) ? 'Hampir Habis' : 'Aman';
                     ?>
                     <!-- HTML untuk List Item Dinamis -->
                     <div class="list-item">
@@ -624,7 +644,7 @@
                             (<strong><?php echo $row['Kuantitas']; ?></strong>)
                         </div>
                         <div class="item-val item-status <?php echo $status_class; ?>">
-                            <?php echo $row['Stok']; ?> Unit (<?php echo $teks_status; ?>)
+                            <?php echo $row['Stok']; ?> 
                         </div>
                         <div class="item-val" style="color: #888;"><?php echo $tgl_format; ?></div>
                     </div>
@@ -633,15 +653,6 @@
                     } // Akhir else
                     ?>
 
-                </div>
-
-                <!-- Promo / Info Card Hitam -->
-                <div class="promo-card">
-                    <div>
-                        <h3>Kelola <span>Data</span> Inventaris dengan Mudah!</h3>
-                        <p>Akses fitur pendataan, laporan, dan statistik dalam satu platform terpusat khusus untuk pergudangan.</p>
-                    </div>
-                    <a href="CRUD/pendataan.php" class="promo-btn">Mulai Pendataan</a>
                 </div>
 
             </div>

@@ -31,29 +31,21 @@
             $username = mysqli_real_escape_string($this->db, trim($username));
             $password = mysqli_real_escape_string($this->db, trim($password));
 
-        // Cek Tabel Pegawai
-        $query_pegawai = "SELECT * FROM pegawai WHERE Username='$username' AND password='$password'";
-        $cek_pegawai = mysqli_query($this->db, $query_pegawai);
-    
-        if(mysqli_num_rows($cek_pegawai) > 0) {
-            $data = mysqli_fetch_assoc($cek_pegawai);
-            $this->setSesi($data['Username'], $data['Nama_lengkap'], 'pegawai');
-            return true;
-        } 
+            // Cek tabel 'user'
+            $query = "SELECT * FROM user WHERE Username='$username' AND Password='$password'";
+            $cek_user = mysqli_query($this->db, $query);
         
-        // Cek Tabel Wakasek
-        $query_wakasek = "SELECT * FROM wakasek WHERE Username='$username' AND password='$password'";
-        $cek_wakasek = mysqli_query($this->db, $query_wakasek);
+            if(mysqli_num_rows($cek_user) > 0) {
+                $data = mysqli_fetch_assoc($cek_user);
+                
+                // Mengambil role langsung dari database ($data['Role'])
+                $this->setSesi($data['Username'], $data['Nama_lengkap'], $data['Role']);
+                return true;
+            } 
         
-        if(mysqli_num_rows($cek_wakasek) > 0) {
-            $data = mysqli_fetch_assoc($cek_wakasek);
-            $this->setSesi($data['Username'], $data['Nama_lengkap'], 'wakasek');
-            return true;
-        } 
-        
-        // Jika tidak ditemukan di kedua tabel
-        return false;
-    }
+            // Jika tidak ditemukan
+            return false;
+        }
 
         // Method private untuk mendaftarkan session
         private function setSesi($username, $nama, $role) {
@@ -217,6 +209,7 @@
             </div>
             
             <button type="submit" name="login" class="btn">Login</button>
+            <marquee behavior="" direction="left"><p>Haidar Saefullah © 2026</p></marquee>
             
         </form>
     </div>
