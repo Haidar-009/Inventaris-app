@@ -2,89 +2,71 @@
     session_start();
     include '../koneksi.php';
 
-    // Cek session login
-    if(!isset($_SESSION['username'])) {
-        header("Location: ../login.php");
-        exit();
-    }
+    // Harus login
+    if(!isset($_SESSION['username'])) { header("Location: ../login.php"); exit(); }
+    // Hanya admin
+    if(($_SESSION['role'] ?? '') !== 'admin') { header("Location: read.php"); exit(); }
 
-    // ===== ROLE & KEAMANAN =====
     if(empty($_SESSION['csrf'])) { $_SESSION['csrf'] = bin2hex(random_bytes(32)); }
-    function isAdmin() { return ($_SESSION['role'] ?? '') === 'admin'; }
     function csrf_ok() { return isset($_POST['csrf']) && hash_equals($_SESSION['csrf'], $_POST['csrf']); }
     function e($t) { return htmlspecialchars((string)$t, ENT_QUOTES, 'UTF-8'); }
 
-    // CLASS OOP
-    class BarangManager {
+    class UserManager {
         private $db;
+        public const ROLE_VALID = ['petugas', 'wakasek', 'admin'];
 
-        // Constructor menerima koneksi database
-        public function __construct($koneksi) {
-            $this->db = $koneksi;
+        public function __construct($koneksi) { $this->db = $koneksi; }
+
+        public function usernameAda($username) {
+            $stmt = $this->db->prepare("SELECT 1 FROM user WHERE Username = ?");
+            $stmt->bind_param("s", $username);
+            $stmt->execute();
+            return $stmt->get_result()->num_rows > 0;
         }
 
-        /**
-         * Method untuk mengambil semua data barang.
-         * Mengembalikan nilai berupa Array.
-         */
-        public function getAllBarang() {
-            $data_barang = [];
-            $query = "SELECT * FROM barang ORDER BY id_barang ASC";
-        
-            $result = $this->db->query($query);
-        
-            if ($result && $result->num_rows > 0) {
-                while($row = $result->fetch_assoc()) {
-                    $data_barang[] = $row;
-                }
+        // Mengembalikan pesan error, atau null jika berhasil
+        public function tambahUser($username, $nama, $password, $role) {
+            $username = trim($username);
+            $nama = trim($nama);
+            
+            if($username === '' || $nama === '' || strlen($password) < 6) {
+                return "Semua kolom wajib diisi dan password minimal 6 karakter.";
             }
-            return $data_barang;
-        }
+            if(!in_array($role, self::ROLE_VALID, true)) { return "Role tidak valid."; }
+            if($this->usernameAda($username)) { return "Username sudah dipakai."; }
 
-        /**
-         * Method untuk menghapus data barang berdasarkan ID.
-         * Mengembalikan nilai TRUE jika berhasil, FALSE jika gagal.
-         */
-        public function deleteBarang($id_barang) {
-            // Mencegah SQL Injection
-            $stmt = $this->db->prepare("DELETE FROM barang WHERE id_barang = ?");
-            $stmt->bind_param("s", $id_barang);
+            // 1. Buat ID acak 9 digit sesuai permintaan
+            $id_petugas = rand(100000000, 999999999);
+
+            // 2. Query disiapkan untuk menerima 5 data (termasuk ID)
+            $stmt = $this->db->prepare("INSERT INTO user (id_petugas, Username, Password, Nama_lengkap, Role) VALUES (?, ?, ?, ?, ?)");
             
-            // query memakai prepared statement (di atas)
-            
-            try { return $stmt->execute(); } catch (mysqli_sql_exception $ex) { return false; }
-        }
-    }   
-    // INSTANSIASI OBJECT & KONTROL LOGIKA
-    $barangManager = new BarangManager($koneksi);
+            // 3. Masukkan data: 'i' untuk ID (integer), 's' untuk sisanya (string). Password tetap plain text.
+            $stmt->bind_param("issss", $id_petugas, $username, $password, $nama, $role);
 
-    // LOGIKA HAPUS DATA (Berjalan jika ada parameter '?hapus=...' di URL)
-    if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['hapus'])) {
-        // Hanya admin yang boleh menghapus (dicek di SERVER, bukan cuma menyembunyikan tombol)
-        if(!isAdmin() || !csrf_ok()) { die('Akses ditolak.'); }
-        $id_hapus = $_POST['hapus'];
-        
-        // Memanggil method deleteBarang
-        $berhasil = $barangManager->deleteBarang($id_hapus);
-
-        if($berhasil) {
-            echo "<script>alert('Data barang berhasil dihapus!'); window.location.href = 'read.php';</script>";
-        } else {
-            echo "<script>alert('Gagal menghapus data! Pastikan barang ini tidak sedang terikat dengan data transaksi.'); window.location.href = 'read.php';</script>";
+            return $stmt->execute() ? null : "Gagal menyimpan user.";
         }
-        exit(); // Hentikan script agar tidak memuat ulang seluruh halaman saat proses hapus
     }
 
-    // Mengambil data untuk ditampilkan di tabel HTML
-    $daftar_barang = $barangManager->getAllBarang(); 
-?>
+    $userManager = new UserManager($koneksi);
+    $notif = '';
+    if(isset($_GET['sukses'])) { $notif = "<div class='alert alert-ok'>User berhasil ditambahkan!</div>"; }
 
+    if($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['tambah_user'])) {
+        if(!csrf_ok()) { die("Token tidak valid."); }
+        $error = $userManager->tambahUser($_POST['username'], $_POST['nama_lengkap'], $_POST['password'], $_POST['role']);
+        if(!$error) { header('Location: tambah_user.php?sukses=1'); exit(); } // cegah kirim ulang form saat refresh
+        $notif = $error
+            ? "<div class='alert alert-err'>" . e($error) . "</div>"
+            : "<div class='alert alert-ok'>User berhasil ditambahkan!</div>";
+    }
+?>
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Barang - Inventaris</title>
+    <title>Tambah User - Inventaris</title>
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
     <style>
         /* CSS Sama Persis dengan Sebelumnya */
@@ -392,104 +374,51 @@
             }
         }
         
+    .form-card{border:1px solid #eee;border-radius:15px;padding:25px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px;align-items:end}
+        .form-card label{font-size:13px;font-weight:600;color:#555;display:block;margin-bottom:6px}
+        .form-card input,.form-card select{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:10px;font-size:14px}
+        .btn-tambah{border:none;cursor:pointer;justify-content:center}
+        .alert{padding:12px 16px;border-radius:10px;margin-bottom:20px;font-size:14px}
+        .alert-ok{background:#dcf2e3;color:#1e8449}.alert-err{background:#fde8e8;color:#c0392b}
     </style>
 </head>
 <body>
-
     <div class="app-wrapper">
-        <!-- SIDEBAR -->
+
+
         <div class="sidebar">
             <div class="logo-box"><i class='bx bx-layer'></i></div>
-
             <div class="nav-links">
-                <a href="../index.php" title="Beranda">
-                    <i class='bx bxs-grid-alt'></i>
-                    <span>Beranda</span>
-                </a>
-                <a href="pendataan.php" title="Pendataan Barang">
-                    <i class='bx bx-folder'></i>
-                    <span>Pendataan</span>
-                </a>
-                <a href="read.php" class="active" title="Statistik & Data">
-                    <i class='bx bx-bar-chart-alt-2'></i>
-                    <span>Master Barang</span>
-                </a>
-                <a href="update.php" title="Update Data">
-                    <i class='bx bx-cube'></i>
-                    <span>Update</span>
-                </a>
-                <?php if(isAdmin()): ?>
-                <a href="tambah_user.php" title="Tambah User">
-                    <i class='bx bx-user-plus'></i>
-                    <span>Tambah User</span>
-                </a>
-                <?php endif; ?>
+                <a href="../index.php" title="Beranda"><i class='bx bxs-grid-alt'></i><span>Beranda</span></a>
+                <a href="pendataan.php" title="Pendataan Barang"><i class='bx bx-folder'></i><span>Pendataan</span></a>
+                <a href="read.php" title="Statistik & Data"><i class='bx bx-bar-chart-alt-2'></i><span>Master Barang</span></a>
+                <a href="update.php" title="Update Data"><i class='bx bx-cube'></i><span>Update</span></a>
+                <a href="tambah_user.php" class="active" title="Tambah User"><i class='bx bx-user-plus'></i><span>Tambah User</span></a>
             </div>
             <a href="../logout.php" class="logout" title="Logout" onclick="return confirm('Yakin ingin keluar?')">
                 <i class='bx bx-log-out'></i>
             </a>
         </div>
 
-        <!-- KONTEN UTAMA -->
         <div class="main-content">
-            <div class="header">
-                <h1>Data Master Barang</h1>
-                <!-- bakal menambahkan tombol Tambah Data disini jika diperlukan :v -->
-            </div>
+            <div class="header"><h1>Tambah User</h1></div>
+            <?php echo $notif; ?>
 
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>No</th>
-                            <th>ID Barang</th>
-                            <th>Nama Barang</th>
-                            <th>Jenis Barang</th>
-                            <th>Sumber Dana</th>
-                            <th>Stok</th>
-                            <?php if(isAdmin()): ?><th>Aksi</th><?php endif; ?>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php
-                        // Cek apakah data kosong atau tidak menggunakan fungsi empty()
-                        if(empty($daftar_barang)) {
-                            // Colspan diubah menjadi 7 karena ada tambahan kolom Aksi
-                            echo "<tr><td colspan='" . (isAdmin() ? 7 : 6) . "' style='text-align:center; padding: 20px;'>Belum ada data barang.</td></tr>";
-                        } else {
-                            $no = 1;
-                            
-                            // perulangan FOREACH untuk membaca Array dari Object OOP
-                            foreach($daftar_barang as $row) {
-                                $stok_class = ($row['Stok'] < 5) ? 'badge-red' : 'badge-green';
-                        ?>
-                        <tr>
-                            <td><?php echo $no++; ?></td>
-                            <td><strong><?php echo e($row['id_barang']); ?></strong></td>
-                            <td><?php echo e($row['Nama_barang']); ?></td>
-                            <td><?php echo e($row['Jenis_barang']); ?></td>
-                            <td><?php echo e($row['Sumber_dana']); ?></td>
-                            <td><span class="badge <?php echo $stok_class; ?>"><?php echo e($row['Stok']); ?> Unit</span></td>
-                            <?php if(isAdmin()): ?>
-                            <td>
-                                <form method="POST" onsubmit="return confirm('Hapus barang ini?')">
-                                    <input type="hidden" name="csrf" value="<?php echo $_SESSION['csrf']; ?>">
-                                    <input type="hidden" name="hapus" value="<?php echo e($row['id_barang']); ?>">
-                                    <button type="submit" class="btn-hapus"><i class='bx bx-trash'></i> Hapus</button>
-                                </form>
-                            </td>
-                            <?php endif; ?>
-                        </tr>
-                        <?php 
-                            } 
-                        } // Penutup Else
-                        ?>
-                    </tbody>
-                </table>
-            </div>
-
+            <form method="POST" class="form-card">
+                <input type="hidden" name="csrf" value="<?php echo $_SESSION['csrf']; ?>">
+                <div><label>Username</label><input type="text" name="username" required></div>
+                <div><label>Nama Lengkap</label><input type="text" name="nama_lengkap" required></div>
+                <div><label>Password</label><input type="password" name="password" minlength="6" required></div>
+                <div><label>Role</label>
+                    <select name="role">
+                        <?php foreach(UserManager::ROLE_VALID as $r): ?>
+                            <option value="<?php echo $r; ?>"><?php echo ucfirst($r); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <button type="submit" name="tambah_user" class="btn-tambah"><i class='bx bx-plus'></i> Simpan User</button>
+            </form>
         </div>
     </div>
-
 </body>
 </html>

@@ -286,7 +286,7 @@
             background: #fff; 
             border-radius: 15px; 
             border: 1px solid #eee; 
-            overflow: hidden; 
+            overflow-x: auto;
         }
 
         table { 
@@ -415,6 +415,115 @@
         }
 
         .btn-submit:hover { background-color: #333; }
+
+        /* RESPONSIVE (HP & tablet kecil) */
+        @media (max-width: 768px) {
+            body { padding: 0; display: block; }
+
+            .app-wrapper { 
+                flex-direction: column-reverse; 
+                height: auto; 
+                min-height: 100vh; 
+                border-radius: 0; 
+                background: transparent; 
+                box-shadow: none; 
+            }
+
+            .sidebar { 
+                position: fixed; 
+                bottom: 0; 
+                left: 0; 
+                right: 0; 
+                z-index: 10; 
+                width: 100%;
+                height: 68px; 
+                flex-direction: row; 
+                justify-content: space-around; 
+                padding: 0 12px; 
+                background: #191b20; 
+            }
+
+            .sidebar .logo-box { display: none; }
+            .nav-links { 
+                flex-direction: row; 
+                justify-content: space-around; 
+                gap: 0; 
+                flex: 1; 
+            }
+
+            .nav-links a { gap: 2px; }
+            .nav-links a i { font-size: 22px; }
+            .nav-links a span { font-size: 10px; }
+
+            .logout {
+                margin-top: 0; 
+                margin-left: 8px; 
+            }
+
+            .main-content { 
+                margin: 0; 
+                border-radius: 0; 
+                padding: 20px 16px 90px; 
+                min-height: 100vh; 
+                overflow: visible; 
+            }
+
+            .header h1 { font-size: 22px; }
+        }
+
+        /* Transisi fade in / fade out antar halaman */
+        .main-content { 
+            animation: pageFadeIn 0.4s ease both; 
+            transition: opacity 0.3s ease; 
+        }
+
+        .main-content.fade-out { opacity: 0; }
+        @keyframes pageFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Sidebar: hanya ikon, meluncur (sliding) terbuka saat di-hover */
+        .logout span { display: none; font-size: 12px; font-weight: 500; }
+        @media (min-width: 769px) {
+            .sidebar { position: relative; z-index: 20; }
+
+            .sidebar::before { 
+                content: ''; 
+                position: absolute; 
+                top: 0; 
+                bottom: 0; 
+                left: 0; 
+                width: 100%; 
+                background: #191b20; 
+                border-radius: 35px 30px 30px 35px; 
+                z-index: -1; 
+                transition: width 0.4s ease, box-shadow 0.4s ease; 
+            }
+
+            .sidebar:hover::before { 
+                width: 240px; 
+                box-shadow: 6px 0 25px rgba(0,0,0,0.25); 
+            }
+
+            .nav-links a, .logout { 
+                display: flex; 
+                align-items: center; 
+                flex-direction: row; 
+                gap: 18px; 
+                width: 100%; 
+                padding-left: 38px; 
+                white-space: nowrap; 
+            }
+
+            .logout span { display: inline; }
+            .nav-links a span, .logout span { 
+                opacity: 0; 
+                transition: opacity 0.25s ease; 
+            }
+
+            .sidebar:hover .nav-links a span, .sidebar:hover .logout span { 
+                opacity: 1; 
+                transition-delay: 0.1s; 
+            }
+        }
     </style>
 </head>
 <body>
@@ -435,12 +544,18 @@
                 </a>
                 <a href="read.php" title="Statistik & Data">
                     <i class='bx bx-bar-chart-alt-2'></i>
-                    <span>Statistik</span>
+                    <span>Master Barang</span>
                 </a>
                 <a href="update.php" class="active" title="Update Data">
                     <i class='bx bx-cube'></i>
                     <span>Update</span>
                 </a>
+                <?php if(($_SESSION['role'] ?? '') === 'admin'): ?>
+                    <a href="tambah_user.php" title="Tambah User">
+                    <i class='bx bx-user-plus'></i>
+                    <span>Tambah User</span>
+                    </a>
+                <?php endif; ?>
             </div>
             <a href="logout.php" class="logout" title="Logout" onclick="return confirm('Yakin ingin keluar?')">
                 <i class='bx bx-log-out'></i>
@@ -449,7 +564,6 @@
 
         <!-- === KONTEN UTAMA === -->
         <div class="main-content">
-            
             <?php 
             /* 
              * BLOK TAMPILAN 1: MODE FORM EDIT 
@@ -503,11 +617,6 @@
                             </div>
                         </div>
 
-                        <div class="form-group" style="width: 40%;">
-                            <label>Stok Tersedia</label>
-                            <input type="number" name="stok" class="form-control" min="0" value="<?php echo $data_edit['Stok']; ?>" required>
-                        </div>
-
                         <button type="submit" name="simpan_update" class="btn-submit">Simpan Perubahan Data</button>
                     </form>
                 </div>
@@ -533,7 +642,6 @@
                                 <th>ID Barang</th>
                                 <th>Nama Barang</th>
                                 <th>Jenis</th>
-                                <th>Stok</th>
                                 <th>Aksi</th>
                             </tr>
                         </thead>
@@ -551,7 +659,6 @@
                                 <td><strong><?php echo $row['id_barang']; ?></strong></td>
                                 <td><?php echo $row['Nama_barang']; ?></td>
                                 <td><?php echo $row['Jenis_barang']; ?></td>
-                                <td><span class="badge <?php echo $stok_class; ?>"><?php echo $row['Stok']; ?> Unit</span></td>
                                 <td>
                                     <!-- Tombol Edit: Mengirim ID melalui URL (Method GET) -->
                                     <a href="update.php?id=<?php echo $row['id_barang']; ?>" class="btn-edit">

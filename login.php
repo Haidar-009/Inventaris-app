@@ -165,13 +165,6 @@
             color: #fff; 
         }
 
-        .wrapper .remember-forgot { 
-            display: flex; 
-            justify-content: space-between; 
-            font-size: 14.5px;
-            margin: -5px 0 25px; 
-        }
-
         .wrapper .btn { 
             width: 100%; 
             height: 45px; 
@@ -185,6 +178,7 @@
             color: #333; 
             font-weight: bold; 
             transition: .3s; 
+            margin-bottom: 20px;
         }
 
         .wrapper .btn:hover { 

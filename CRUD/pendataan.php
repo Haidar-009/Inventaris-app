@@ -2,7 +2,7 @@
     session_start();
     include '../koneksi.php';
 
-    // Validasi Akses: Hanya untuk yang sudah login (dan seharusnya hanya untuk role 'petugas')
+    // Validasi Akses: Hanya untuk yang sudah login(dan seharusnya hanya untuk role 'petugas'
     if(!isset($_SESSION['username'])) {
         header("Location: login.php");
         exit();
@@ -10,7 +10,7 @@
 
     $username_aktif = $_SESSION['username'];
 
-    // PERUBAHAN UTAMA: Ubah pencarian dari tabel 'pegawai' ke tabel 'user'
+    // tabel 'user'
     $query_petugas = mysqli_query($koneksi, "SELECT * FROM user WHERE Username='$username_aktif'");
     $data_petugas = mysqli_fetch_assoc($query_petugas);
 
@@ -33,7 +33,7 @@
         $nama_penerima = '-'; 
         $id_barang = '';
 
-        // LOGIKA 1: PEMINJAMAN, PEMASUKAN, & BARANG KELUAR (Pakai barang yang sudah ada di database)
+        // LOGIKA PEMINJAMAN, PEMASUKAN, & BARANG KELUAR (Pakai barang yang sudah ada di database)
     if($jenis_transaksi == 'Peminjaman' || $jenis_transaksi == 'Pemasukan' || $jenis_transaksi == 'Barang Keluar') {
         
         // Nama penerima hanya diisi jika Peminjaman/Pemasukan
@@ -284,7 +284,47 @@
         /* Pengaturan Tampilan Berdasarkan JavaScript */
         #form_penerima, #grup_barang_baru { display: none; }
         #grup_barang_tersedia { display: block; }
+
+        /* RESPONSIVE (HP & tablet kecil) */
+        @media (max-width: 768px) {
+            body { padding: 0; display: block; }
+            .app-wrapper { flex-direction: column-reverse; height: auto; min-height: 100vh; border-radius: 0; background: transparent; box-shadow: none; }
+            .sidebar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 10; width: 100%; height: 68px; flex-direction: row; justify-content: space-around; padding: 0 12px; background: #191b20; }
+            .sidebar .logo-box { display: none; }
+            .nav-links { flex-direction: row; justify-content: space-around; gap: 0; flex: 1; }
+            .nav-links a { gap: 2px; }
+            .nav-links a i { font-size: 22px; }
+            .nav-links a span { font-size: 10px; }
+            .logout { margin-top: 0; margin-left: 8px; }
+            .main-content { margin: 0; border-radius: 0; padding: 20px 16px 90px; min-height: 100vh; overflow: visible; }
+            .header h1 { font-size: 22px; }
+            .header-right { gap: 12px; }
+            .user-profile { padding: 6px 10px; }
+            .user-profile span { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .top-grid { grid-template-columns: 1fr; gap: 25px; }
+            .list-header { display: none; }
+            .list-item { grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+            .item-name { grid-column: 1 / -1; }
+            .item-val::before { content: attr(data-label); display: block; font-size: 11px; color: #999; font-weight: 400; }
+        }
         
+
+        /* Transisi fade in / fade out antar halaman */
+        .main-content { animation: pageFadeIn 0.4s ease both; transition: opacity 0.3s ease; }
+        .main-content.fade-out { opacity: 0; }
+        @keyframes pageFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Sidebar: hanya ikon, meluncur (sliding) terbuka saat di-hover */
+        .logout span { display: none; font-size: 12px; font-weight: 500; }
+        @media (min-width: 769px) {
+            .sidebar { position: relative; z-index: 20; }
+            .sidebar::before { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 100%; background: #191b20; border-radius: 35px 30px 30px 35px; z-index: -1; transition: width 0.4s ease, box-shadow 0.4s ease; }
+            .sidebar:hover::before { width: 240px; box-shadow: 6px 0 25px rgba(0,0,0,0.25); }
+            .nav-links a, .logout { display: flex; align-items: center; flex-direction: row; gap: 18px; width: 100%; padding-left: 38px; white-space: nowrap; }
+            .logout span { display: inline; }
+            .nav-links a span, .logout span { opacity: 0; transition: opacity 0.25s ease; }
+            .sidebar:hover .nav-links a span, .sidebar:hover .logout span { opacity: 1; transition-delay: 0.1s; }
+        }
     </style>
 </head>
 <body>
@@ -305,15 +345,22 @@
                 </a>
                 <a href="read.php" title="Statistik & Data">
                     <i class='bx bx-bar-chart-alt-2'></i>
-                    <span>Statistik</span>
+                    <span>Master Barang</span>
                 </a>
                 <a href="update.php" title="Update Data">
                     <i class='bx bx-cube'></i>
                     <span>Update</span>
                 </a>
+                <?php if(($_SESSION['role'] ?? '') === 'admin'): ?>
+                    <a href="tambah_user.php" title="Tambah User">
+                    <i class='bx bx-user-plus'></i>
+                    <span>Tambah User</span>
+                    </a>
+                <?php endif; ?>
             </div>
             <a href="logout.php" class="logout" title="Logout" onclick="return confirm('Yakin ingin keluar?')">
                 <i class='bx bx-log-out'></i>
+                <span>Logout</span>
             </a>
         </div>
 
@@ -376,7 +423,7 @@
                         </div>
                     </div>
 
-                    <!-- OPSI 2: JIKA BARANG MASUK/KELUAR (INPUT DETAIL BARANG) -->
+                    <!-- JIKA BARANG MASUK/KELUAR (INPUT DETAIL BARANG) -->
                     <div id="grup_barang_baru">
                         <div class="form-group">
                             <label>Nama Barang / Aset</label>
@@ -479,6 +526,23 @@
         }
         
         window.onload = ubahTampilanForm;
+
+        // Fade out sebelum pindah halaman (navbar)
+        document.addEventListener('click', function (e) {
+            var a = e.target.closest('a');
+            if (!a || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+            var href = a.getAttribute('href');
+            if (!href || href.charAt(0) === '#') return;
+            if (a.target === '_blank' || a.hasAttribute('download') ||
+                a.hasAttribute('onclick') || a.hasAttribute('data-no-fade')) return;
+            if (a.origin !== location.origin) return;
+            e.preventDefault();
+            document.querySelector('.main-content').classList.add('fade-out');
+            setTimeout(function () { location.href = a.href; }, 300);
+        });
+        window.addEventListener('pageshow', function (e) {
+            if (e.persisted) document.querySelector('.main-content').classList.remove('fade-out');
+        });
     </script>
 
 </body>
