@@ -183,9 +183,9 @@
                     <span>Stok</span>
                 </button>
             </div>
-            <a href="logout.php" class="logout" title="Logout" onclick="return confirm('Yakin ingin keluar?')">
+            <a href="../logout.php" class="logout" title="Logout" data-logout data-no-fade>
                 <i class='bx bx-log-out'></i>
-                <span>Keluar</span>
+                 <span>Logout</span>
             </a>
         </div>
 
@@ -319,6 +319,6 @@
             document.getElementById("btn-" + namaTab).classList.add("active");
         }
     </script>
-
+    <?php include 'logout.php'; ?>
 </body>
 </html>

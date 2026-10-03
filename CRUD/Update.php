@@ -74,24 +74,31 @@
      * @param string $nama Nama Barang yang baru
      * @param string $jenis Jenis/Kategori Barang yang baru
      * @param string $sumber Sumber Dana yang baru
-     * @param int $stok Jumlah stok yang baru
+     * @param int|null $stok Stok baru yang langsung ditimpa (khusus admin). Isi null jika tidak dipakai.
+     * @param int $tambahStok Jumlah stok yang DITAMBAHKAN ke stok saat ini (untuk petugas).
      * @return bool True jika update berhasil, False jika gagal.
      */
-    public function updateData($id, $nama, $jenis, $sumber, $stok) {
+    public function updateData($id, $nama, $jenis, $sumber, $stok = null, $tambahStok = 0) {
         // Membersihkan inputan agar aman dari serangan peretas
         $id     = $this->db->real_escape_string(trim($id));
         $nama   = $this->db->real_escape_string(trim($nama));
         $jenis  = $this->db->real_escape_string(trim($jenis));
         $sumber = $this->db->real_escape_string(trim($sumber));
         
-        // Memastikan stok selalu terbaca sebagai angka (Integer)
-        $stok   = (int)$stok; 
+        // LOGIKA STOK:
+        // - Admin    : stok boleh ditimpa langsung dengan nilai baru ($stok)
+        // - Petugas  : stok lama tidak diubah, hanya ditambah ($tambahStok) langsung di database
+        if ($stok !== null) {
+            $stok_sql = "Stok = " . max(0, (int)$stok);
+        } else {
+            $stok_sql = "Stok = Stok + " . max(0, (int)$tambahStok);
+        }
 
         $query = "UPDATE barang SET 
                     Nama_barang = '$nama', 
                     Jenis_barang = '$jenis', 
                     Sumber_dana = '$sumber', 
-                    Stok = $stok 
+                    $stok_sql 
                   WHERE Id_barang = '$id'";
         
         return $this->db->query($query); 
@@ -101,6 +108,11 @@
     // INSTANSIASI & LOGIKA KONTROL HALAMAN (CONTROLLER)
 
     $updater = new BarangUpdater($koneksi);
+
+    // Hanya admin yang boleh mengubah stok secara langsung.
+    // Role lain (petugas) stok-nya terkunci dan hanya bisa menambah.
+    $role_aktif       = $_SESSION['role'] ?? '';
+    $boleh_ubah_stok  = ($role_aktif === 'admin');
 
     // Variabel untuk mengontrol tampilan (Tabel vs Form Edit)
     $mode_edit = false; 
@@ -117,7 +129,8 @@
             $_POST['nama_barang'],
             $_POST['jenis_barang'],
             $_POST['sumber_dana'],
-            $_POST['stok']
+            ($boleh_ubah_stok && isset($_POST['stok'])) ? $_POST['stok'] : null,   // admin: isi stok langsung
+            $_POST['tambah_stok'] ?? 0                                             // petugas: hanya menambah
         );
 
         if ($is_success) {
@@ -394,7 +407,8 @@
             box-shadow: 0 0 0 3px rgba(25, 27, 32, 0.1); 
         }
 
-        .form-control[readonly] { 
+        .form-control[readonly],
+        .form-control:disabled { 
             background-color: #e9ecef; 
             cursor: not-allowed; 
             color: #666; 
@@ -471,14 +485,12 @@
             .header h1 { font-size: 22px; }
         }
 
-        /* Transisi fade in / fade out antar halaman */
-        .main-content { 
-            animation: pageFadeIn 0.4s ease both; 
-            transition: opacity 0.3s ease; 
-        }
-
-        .main-content.fade-out { opacity: 0; }
-        @keyframes pageFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* Transisi fade in / fade out antar halaman (seamless) */
+        /* Panel putih TETAP di tempat; hanya isinya yang memudar, jadi latar gelap tidak pernah terlihat */
+        .main-content > * { animation: pageFadeIn 0.35s ease backwards; }
+        .main-content.fade-out > * { animation: pageFadeOut 0.25s ease forwards; }
+        @keyframes pageFadeIn  { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes pageFadeOut { from { opacity: 1; } to { opacity: 0; } }
 
         /* Sidebar: hanya ikon, meluncur (sliding) terbuka saat di-hover */
         .logout span { display: none; font-size: 12px; font-weight: 500; }
@@ -557,9 +569,10 @@
                     </a>
                 <?php endif; ?>
             </div>
-            <a href="logout.php" class="logout" title="Logout" onclick="return confirm('Yakin ingin keluar?')">
-                <i class='bx bx-log-out'></i>
-            </a>
+                <a href="../logout.php" class="logout" title="Logout" data-logout data-no-fade>
+                    <i class='bx bx-log-out'></i>
+                    <span>Logout</span>
+                </a>
         </div>
 
         <!-- === KONTEN UTAMA === -->
@@ -616,6 +629,30 @@
                                 </select>
                             </div>
                         </div>
+
+                        <!-- STOK BARANG -->
+                        <?php if ($boleh_ubah_stok): ?>
+                            <!-- Admin: stok boleh diubah langsung -->
+                            <div class="form-group">
+                                <label>Stok</label>
+                                <input type="number" name="stok" class="form-control" min="0" value="<?php echo (int)$data_edit['Stok']; ?>" required>
+                            </div>
+                        <?php else: ?>
+                            <!-- Petugas: stok saat ini terkunci (disabled), hanya bisa menambah stok -->
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                <div class="form-group">
+                                    <label>Stok Saat Ini (Tidak dapat diubah)</label>
+                                    <input type="number" id="stok_sekarang" class="form-control" value="<?php echo (int)$data_edit['Stok']; ?>" disabled>
+                                </div>
+                                <div class="form-group">
+                                    <label>Tambah Stok (Misal: Pembelian Baru)</label>
+                                    <input type="number" name="tambah_stok" id="tambah_stok" class="form-control" min="0" value="0" placeholder="Misal: 10">
+                                </div>
+                            </div>
+                            <p style="font-size: 13px; color: #6b707c; margin: -8px 0 15px 0;">
+                                Stok setelah disimpan: <strong id="stok_total" style="color: #191b20;"><?php echo (int)$data_edit['Stok']; ?></strong>
+                            </p>
+                        <?php endif; ?>
 
                         <button type="submit" name="simpan_update" class="btn-submit">Simpan Perubahan Data</button>
                     </form>
@@ -677,6 +714,35 @@
 
         </div>
     </div>
+         <script>
+        // Hitung otomatis "Stok setelah disimpan" (khusus tampilan petugas)
+        var inpTambah = document.getElementById('tambah_stok');
+        if (inpTambah) {
+            var stokSekarang = parseInt(document.getElementById('stok_sekarang').value, 10) || 0;
+            inpTambah.addEventListener('input', function () {
+                var tambah = parseInt(inpTambah.value, 10);
+                if (isNaN(tambah) || tambah < 0) tambah = 0;
+                document.getElementById('stok_total').textContent = stokSekarang + tambah;
+            });
+        }
 
+        // Fade out isi halaman sebelum pindah (panel putih tetap, tidak jadi gelap)
+        document.addEventListener('click', function (e) {
+            var a = e.target.closest('a');
+            if (!a || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+            var href = a.getAttribute('href');
+            if (!href || href.charAt(0) === '#') return;
+            if (a.target === '_blank' || a.hasAttribute('download') ||
+                a.hasAttribute('onclick') || a.hasAttribute('data-no-fade')) return;
+            if (a.origin !== location.origin) return;
+            e.preventDefault();
+            document.querySelector('.main-content').classList.add('fade-out');
+            setTimeout(function () { location.href = a.href; }, 250);
+        });
+        window.addEventListener('pageshow', function (e) {
+            if (e.persisted) document.querySelector('.main-content').classList.remove('fade-out');
+        });
+    </script>
+    <?php include '../logout.php'; ?>
 </body>
 </html>

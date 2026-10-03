@@ -338,14 +338,12 @@
             .header h1 { font-size: 22px; }
         }
 
-        /* Transisi fade in / fade out antar halaman */
-        .main-content { 
-            animation: pageFadeIn 0.4s ease both; 
-            transition: opacity 0.3s ease; 
-        }
-
-        .main-content.fade-out { opacity: 0; }
-        @keyframes pageFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* Transisi fade in / fade out antar halaman (seamless) */
+        /* Panel putih TETAP di tempat; hanya isinya yang memudar, jadi latar gelap tidak pernah terlihat */
+        .main-content > * { animation: pageFadeIn 0.35s ease backwards; }
+        .main-content.fade-out > * { animation: pageFadeOut 0.25s ease forwards; }
+        @keyframes pageFadeIn  { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes pageFadeOut { from { opacity: 1; } to { opacity: 0; } }
 
         /* Sidebar: hanya ikon, meluncur (sliding) terbuka saat di-hover */
         .logout span { display: none; font-size: 12px; font-weight: 500; }
@@ -425,8 +423,9 @@
                 </a>
                 <?php endif; ?>
             </div>
-            <a href="../logout.php" class="logout" title="Logout" onclick="return confirm('Yakin ingin keluar?')">
+            <a href="../logout.php" class="logout" title="Logout" data-logout data-no-fade>
                 <i class='bx bx-log-out'></i>
+                 <span>Logout</span>
             </a>
         </div>
 
@@ -490,6 +489,24 @@
 
         </div>
     </div>
-
+         <script>
+        // Fade out isi halaman sebelum pindah (panel putih tetap, tidak jadi gelap)
+        document.addEventListener('click', function (e) {
+            var a = e.target.closest('a');
+            if (!a || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+            var href = a.getAttribute('href');
+            if (!href || href.charAt(0) === '#') return;
+            if (a.target === '_blank' || a.hasAttribute('download') ||
+                a.hasAttribute('onclick') || a.hasAttribute('data-no-fade')) return;
+            if (a.origin !== location.origin) return;
+            e.preventDefault();
+            document.querySelector('.main-content').classList.add('fade-out');
+            setTimeout(function () { location.href = a.href; }, 250);
+        });
+        window.addEventListener('pageshow', function (e) {
+            if (e.persisted) document.querySelector('.main-content').classList.remove('fade-out');
+        });
+    </script>
+    <?php include '../logout.php'; ?>
 </body>
 </html>

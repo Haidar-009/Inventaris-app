@@ -415,7 +415,13 @@
             border-radius: 30px; 
             margin: 15px 15px 15px 0; 
             padding: 40px 50px; 
-            overflow-y: auto; 
+            overflow-y: auto;
+            scrollbar-width: none;        /* Firefox */
+            -ms-overflow-style: none      /* Edge/IE lama */
+        }
+
+        .main-content::-webkit-scrollbar {
+            display: none;   /* Chrome, Edge, Safari */
         }
 
         .header { 
@@ -719,54 +725,185 @@
         .export-btns a:hover { transform: translateY(-3px); }
 
         /* Transaksi */
-        .count { font-size: 12px; color: #999; }
-        .load-more { display: block; width: max-content; margin: 20px auto 0; padding: 10px 22px; border-radius: 15px; background: #e4f0fa; color: #191b20; font-weight: 600; font-size: 13px; text-decoration: none; }
+        .count { 
+            font-size: 12px; 
+            color: #999; 
+        }
+
+        .load-more { 
+            display: block; 
+            width: max-content; 
+            margin: 20px auto 0; 
+            padding: 10px 22px; 
+            border-radius: 15px; 
+            background: #e4f0fa; 
+            color: #191b20; 
+            font-weight: 600; 
+            font-size: 13px; 
+            text-decoration: none; 
+        }
 
         /* RESPONSIVE (HP & tablet kecil) */
         @media (max-width: 768px) {
-            body { padding: 0; display: block; }
-            .app-wrapper { flex-direction: column-reverse; height: auto; min-height: 100vh; border-radius: 0; background: transparent; box-shadow: none; }
-            .sidebar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 10; width: 100%; height: 68px; flex-direction: row; justify-content: space-around; padding: 0 12px; background: #191b20; }
+            body { 
+                padding: 0; 
+                display: block; 
+            }
+
+            .app-wrapper { 
+                flex-direction: column-reverse; 
+                height: auto; 
+                min-height: 100vh; 
+                border-radius: 0; 
+                background: transparent; 
+                box-shadow: none; 
+            }
+
+            .sidebar { 
+                position: fixed; 
+                bottom: 0; 
+                left: 0; 
+                right: 0; 
+                z-index: 10; 
+                width: 100%; 
+                height: 68px; 
+                flex-direction: row; 
+                justify-content: space-around; 
+                padding: 0 12px; 
+                background: #191b20; 
+            }
+
             .sidebar .logo-box { display: none; }
-            .nav-links { flex-direction: row; justify-content: space-around; gap: 0; flex: 1; }
+            .nav-links { 
+                flex-direction: row; 
+                justify-content: space-around; 
+                gap: 0; 
+                flex: 1; 
+            }
+
             .nav-links a { gap: 2px; }
             .nav-links a i { font-size: 22px; }
             .nav-links a span { font-size: 10px; }
-            .logout { margin-top: 0; margin-left: 8px; }
-            .main-content { margin: 0; border-radius: 0; padding: 20px 16px 90px; min-height: 100vh; overflow: visible; }
+
+            .logout { 
+                margin-top: 0; 
+                margin-left: 8px; 
+            }
+
+            .main-content { 
+                margin: 0; 
+                border-radius: 0; 
+                padding: 20px 16px 90px; 
+                min-height: 100vh; 
+                overflow: visible; 
+            }
+
             .header h1 { font-size: 22px; }
             .header-right { gap: 12px; }
             .user-profile { padding: 6px 10px; }
-            .user-profile span { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-            .top-grid { grid-template-columns: 1fr; gap: 25px; }
+
+            .user-profile span { 
+                max-width: 110px; 
+                overflow: hidden; 
+                text-overflow: ellipsis; 
+                white-space: nowrap; 
+            }
+
+            .top-grid { 
+                grid-template-columns: 1fr; 
+                gap: 25px; 
+            }
+
             .list-header { display: none; }
-            .list-item { grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+
+            .list-item { 
+                grid-template-columns: 1fr 1fr; 
+                gap: 8px 10px; 
+            }
+
             .item-name { grid-column: 1 / -1; }
-            .item-val::before { content: attr(data-label); display: block; font-size: 11px; color: #999; font-weight: 400; }
+
+            .item-val::before { 
+                content: attr(data-label); 
+                display: block; 
+                font-size: 11px; 
+                color: #999; 
+                font-weight: 400; 
+            }
+
         }
 
 
-        /* Transisi fade in / fade out antar halaman */
-        .main-content { animation: pageFadeIn 0.4s ease both; transition: opacity 0.3s ease; }
-        .main-content.fade-out { opacity: 0; }
-        @keyframes pageFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* Transisi fade in / fade out antar halaman (seamless) */
+        .main-content > * { 
+            animation: pageFadeIn 0.35s ease backwards; 
+        }
+
+        .main-content.fade-out > * { 
+            animation: pageFadeOut 0.25s ease forwards; 
+        }
+
+        @keyframes pageFadeIn  { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes pageFadeOut { from { opacity: 1; } to { opacity: 0; } }
         
         /* Sidebar: hanya ikon, meluncur (sliding) terbuka saat di-hover */
-        .logout span { display: none; font-size: 12px; font-weight: 500; }
+        .logout span { 
+            display: none; 
+            font-size: 12px; 
+            font-weight: 500; 
+        }
+
         @media (min-width: 769px) {
-            .sidebar { position: relative; z-index: 20; }   
-            .sidebar::before { content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 100%; background: #191b20; border-radius: 0 30px 30px 0; z-index: -1; transition: width 0.4s ease, box-shadow 0.4s ease; }
-            .sidebar:hover::before { width: 240px; box-shadow: 6px 0 25px rgba(0,0,0,0.25); }
-            .nav-links a, .logout { display: flex; align-items: center; flex-direction: row; gap: 18px; width: 100%; padding-left: 38px; white-space: nowrap; }
+            .sidebar { 
+                position: relative; 
+                z-index: 20; 
+            }
+
+            .sidebar::before { 
+                content: ''; 
+                position: absolute; 
+                top: 0; bottom: 0; 
+                left: 0; 
+                width: 100%; 
+                background: #191b20; 
+                border-radius: 0 30px 30px 0; 
+                z-index: -1; 
+                transition: width 0.4s ease, box-shadow 0.4s ease; 
+            }
+
+            .sidebar:hover::before { 
+                width: 240px; 
+                box-shadow: 6px 0 25px rgba(0,0,0,0.25); 
+            }
+
+            .nav-links a, .logout { 
+                display: flex; 
+                align-items: center; 
+                flex-direction: row; 
+                gap: 18px; 
+                width: 100%; 
+                padding-left: 38px; 
+                white-space: nowrap; 
+            }
+
             .logout span { display: inline; }
-            .nav-links a span, .logout span { opacity: 0; transition: opacity 0.25s ease; }
-            .sidebar:hover .nav-links a span, .sidebar:hover .logout span { opacity: 1; transition-delay: 0.1s; }
+
+            .nav-links a span, .logout span {
+                opacity: 0; 
+                transition: opacity 0.25s ease; 
+            }
+
+            .sidebar:hover .nav-links a span, .sidebar:hover .logout span { 
+                opacity: 1; 
+                transition-delay: 0.1s; 
+            }
         }
     </style>
 </head>
 <body>
 
     <div class="app-wrapper">
+
         <!-- SIDEBAR -->
         <div class="sidebar">
             <div class="logo-box"><i class='bx bx-layer'></i></div>
@@ -794,11 +931,12 @@
                     </a>
                 <?php endif; ?>
             </div>
-            <a href="logout.php" class="logout" title="Logout" onclick="return confirm('Yakin ingin keluar?')">
+            <a href="logout.php" class="logout" title="Logout" data-logout data-no-fade>
                 <i class='bx bx-log-out'></i>
-                <span>Logout</span>
+                 <span>Logout</span>
             </a>
         </div>
+
 
         <!-- KONTEN UTAMA -->
         <div class="main-content">
@@ -813,6 +951,7 @@
                     </div>
                 </div>
             </div>
+
 
             <!-- Panel pencarian + filter -->
             <form class="search-panel <?php echo $filter_aktif ? 'open' : ''; ?>" id="panelCari" method="get" action="index.php#transaksi">
@@ -832,7 +971,8 @@
                 <?php if ($filter_aktif): ?><a class="reset" href="index.php#transaksi">Reset</a><?php endif; ?>
             </form>
 
-            <!-- Bagian Atas: Chart & Kartu Warna DINAMIS -->
+
+            <!-- Bagian Atas, Chart & Kartu Warna dinamis -->
             <div class="top-grid">
                 
                 <div>
@@ -849,11 +989,13 @@
                     </div>
                 </div>
 
+
                 <div>
                     <div class="section-header">
                         <h3>Status Aset (Riwayat)</h3>
                         <i class='bx bx-slider-alt' style="color: #666; font-size: 20px;"></i>
                     </div>
+
                     <!-- Grid 3 Kartu Pastel Dinamis -->
                     <div class="assets-grid">
                         <div class="asset-card purple">
@@ -882,6 +1024,7 @@
 
             </div>
 
+
             <!-- Transaksi (full width) -->
             <div id="transaksi">
                 <div class="section-header">
@@ -904,6 +1047,7 @@
                     $tgl_format  = date('d M Y', strtotime($row['Tanggal']));
                     $icon        = in_array($row['Jenis_transaksi'], DashboardManager::MASUK) ? 'bx-down-arrow-alt' : 'bx-up-arrow-alt';
                 ?>
+
                 <div class="list-item">
                     <div class="item-name">
                         <div class="item-icon-dark"><i class='bx <?php echo $icon; ?>'></i></div>
@@ -912,6 +1056,7 @@
                             <span><?php echo e($row['Jenis_barang']); ?></span>
                         </div>
                     </div>
+
                     <div class="item-val item-status blue" data-label="Transaksi">
                         <?php echo e($row['Jenis_transaksi']); ?> (<strong><?php echo e($row['Kuantitas']); ?></strong>)
                     </div>
@@ -920,11 +1065,13 @@
                     </div>
                     <div class="item-val" style="color:#888;" data-label="Tanggal"><?php echo $tgl_format; ?></div>
                 </div>
+
                 <?php endforeach; endif; ?>
 
                 <?php if ($total_transaksi > count($transaksi_terakhir)): ?>
                     <a class="load-more" href="?<?php echo http_build_query($param + ['limit' => $limit + 10]); ?>#transaksi">Muat lebih banyak</a>
                 <?php endif; ?>
+
             </div>
 
         </div>
@@ -937,6 +1084,7 @@
             panel.classList.toggle('open');
             if (panel.classList.contains('open')) panel.querySelector('input').focus();
         });
+
         // Fade out sebelum pindah halaman (navbar)
         document.addEventListener('click', function (e) {
             var a = e.target.closest('a');
@@ -948,12 +1096,14 @@
             if (a.origin !== location.origin) return;
             e.preventDefault();
             document.querySelector('.main-content').classList.add('fade-out');
-            setTimeout(function () { location.href = a.href; }, 300);
+            setTimeout(function () { location.href = a.href; }, 250);
         });
+
         window.addEventListener('pageshow', function (e) {
             if (e.persisted) document.querySelector('.main-content').classList.remove('fade-out');
         });
-    </script>
 
+    </script>
+    <?php include 'logout.php'; ?>
 </body>
 </html>

@@ -27,7 +27,7 @@
     // PROSES SIMPAN DATA (Logika Database)
     if(isset($_POST['simpan_transaksi'])) {
         $jenis_transaksi = $_POST['jenis_transaksi'];
-        $kuantitas = $_POST['kuantitas'];
+        $kuantitas = (int)$_POST['kuantitas'];
         $id_transaksi_baru = "TRX" . rand(10000, 99999); 
         $id_detail_baru = "DET" . rand(10000, 99999);
         $nama_penerima = '-'; 
@@ -38,10 +38,31 @@
         
         // Nama penerima hanya diisi jika Peminjaman/Pemasukan
         if($jenis_transaksi == 'Peminjaman' || $jenis_transaksi == 'Pemasukan') {
-            $nama_penerima = $_POST['nama_penerima'];
+            $nama_penerima = mysqli_real_escape_string($koneksi, trim($_POST['nama_penerima']));
         }
         
-        $id_barang = $_POST['id_barang_tersedia'];
+        $id_barang = mysqli_real_escape_string($koneksi, $_POST['id_barang_tersedia']);
+
+        // VALIDASI PENGEMBALIAN: hanya boleh mengembalikan barang yang memang sedang dipinjam
+        if($jenis_transaksi == 'Pemasukan') {
+            $q_sisa = mysqli_query($koneksi, "SELECT COALESCE(SUM(CASE WHEN p.Jenis_transaksi = 'Peminjaman' THEN d.Kuantitas ELSE -d.Kuantitas END), 0) AS sisa
+                                              FROM pendataan_barang p
+                                              JOIN detail_pendataan d ON d.Id_Transaksi = p.Id_Transaksi
+                                              WHERE LOWER(TRIM(p.Nama_penerima)) = LOWER(TRIM('$nama_penerima'))
+                                                AND d.id_barang = '$id_barang'
+                                                AND p.Jenis_transaksi IN ('Peminjaman', 'Pemasukan')");
+            $row_sisa = $q_sisa ? mysqli_fetch_assoc($q_sisa) : null;
+            $sisa_pinjam = (int)($row_sisa['sisa'] ?? 0);
+
+            if($sisa_pinjam <= 0) {
+                echo "<script>alert('Peminjam tersebut tidak sedang meminjam barang ini!'); history.back();</script>";
+                exit();
+            }
+            if($kuantitas > $sisa_pinjam) {
+                echo "<script>alert('Jumlah pengembalian melebihi jumlah yang dipinjam (sisa pinjaman: $sisa_pinjam)!'); history.back();</script>";
+                exit();
+            }
+        }
         
         // Simpan ke Transaksi Induk
         $query_trx = "INSERT INTO pendataan_barang (Id_Transaksi, Id_petugas, Tanggal, Nama_penerima, Jenis_transaksi) 
@@ -94,6 +115,32 @@
         }
     }
 }
+
+    // DATA PINJAMAN AKTIF (dipakai untuk isi otomatis form Pengembalian)
+    // Sisa pinjaman = total Peminjaman - total Pemasukan (pengembalian) per peminjam & barang
+    $pinjaman_aktif = [];
+    $q_pinjam = mysqli_query($koneksi, "SELECT MIN(TRIM(p.Nama_penerima)) AS nama, d.id_barang, b.Nama_barang,
+                                               SUM(CASE WHEN p.Jenis_transaksi = 'Peminjaman' THEN d.Kuantitas ELSE -d.Kuantitas END) AS sisa
+                                        FROM pendataan_barang p
+                                        JOIN detail_pendataan d ON d.Id_Transaksi = p.Id_Transaksi
+                                        JOIN barang b ON b.id_barang = d.id_barang
+                                        WHERE p.Jenis_transaksi IN ('Peminjaman', 'Pemasukan')
+                                        GROUP BY LOWER(TRIM(p.Nama_penerima)), d.id_barang, b.Nama_barang
+                                        HAVING sisa > 0
+                                        ORDER BY nama");
+    if($q_pinjam) {
+        while($r = mysqli_fetch_assoc($q_pinjam)) {
+            $kunci = strtolower(trim($r['nama']));
+            if(!isset($pinjaman_aktif[$kunci])) {
+                $pinjaman_aktif[$kunci] = ['nama' => $r['nama'], 'barang' => []];
+            }
+            $pinjaman_aktif[$kunci]['barang'][] = [
+                'id'   => $r['id_barang'],
+                'nama' => $r['Nama_barang'],
+                'sisa' => (int)$r['sisa']
+            ];
+        }
+    }
 ?>
 
 <!DOCTYPE html>
@@ -309,10 +356,12 @@
         }
         
 
-        /* Transisi fade in / fade out antar halaman */
-        .main-content { animation: pageFadeIn 0.4s ease both; transition: opacity 0.3s ease; }
-        .main-content.fade-out { opacity: 0; }
-        @keyframes pageFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* Transisi fade in / fade out antar halaman (seamless) */
+        /* Panel putih TETAP di tempat; hanya isinya yang memudar, jadi latar gelap tidak pernah terlihat */
+        .main-content > * { animation: pageFadeIn 0.35s ease backwards; }
+        .main-content.fade-out > * { animation: pageFadeOut 0.25s ease forwards; }
+        @keyframes pageFadeIn  { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes pageFadeOut { from { opacity: 1; } to { opacity: 0; } }
 
         /* Sidebar: hanya ikon, meluncur (sliding) terbuka saat di-hover */
         .logout span { display: none; font-size: 12px; font-weight: 500; }
@@ -325,6 +374,10 @@
             .nav-links a span, .logout span { opacity: 0; transition: opacity 0.25s ease; }
             .sidebar:hover .nav-links a span, .sidebar:hover .logout span { opacity: 1; transition-delay: 0.1s; }
         }
+
+        /* Info otomatis saat Pengembalian */
+        .info-pengembalian { display: block; margin-top: 8px; padding: 8px 12px; background: #e4f0fa; color: #191b20; border-radius: 8px; font-size: 12.5px; line-height: 1.5; }
+        .info-pengembalian.kosong { background: #fff4e5; }
     </style>
 </head>
 <body>
@@ -358,9 +411,9 @@
                     </a>
                 <?php endif; ?>
             </div>
-            <a href="logout.php" class="logout" title="Logout" onclick="return confirm('Yakin ingin keluar?')">
+            <a href="../logout.php" class="logout" title="Logout" data-logout data-no-fade>
                 <i class='bx bx-log-out'></i>
-                <span>Logout</span>
+                 <span>Logout</span>
             </a>
         </div>
 
@@ -390,7 +443,7 @@
                     <!-- INPUT JENIS TRANSAKSI -->
                     <div class="form-group">
                         <label>Pilih Jenis Transaksi</label>
-                        <select name="jenis_transaksi" id="jenis_transaksi" class="form-control" onchange="ubahTampilanForm()" required>
+                        <select name="jenis_transaksi" id="jenis_transaksi" class="form-control" onchange="ubahTampilanForm(); aturModePengembalian(false);" required>
                             <option value="" disabled selected>-- Pilih Jenis --</option>
                             <option value="Peminjaman">1. Peminjaman</option>
                             <option value="Pemasukan">2. Pemasukan (Pengembalian)</option>
@@ -402,16 +455,21 @@
                     <!-- NAMA PENERIMA (Dinamic) -->
                     <div class="form-group" id="form_penerima">
                         <label>Nama Penerima / Peminjam</label>
-                        <input type="text" name="nama_penerima" id="input_penerima" class="form-control" placeholder="Masukkan nama pihak terkait...">
+                        <input type="text" name="nama_penerima" id="input_penerima" class="form-control" placeholder="Masukkan nama pihak terkait..." autocomplete="off">
+                        <!-- Saran nama peminjam yang masih punya pinjaman (aktif saat Pengembalian) -->
+                        <datalist id="daftar_peminjam">
+                            <?php foreach($pinjaman_aktif as $p) { echo "<option value=\"" . htmlspecialchars($p['nama'], ENT_QUOTES) . "\">"; } ?>
+                        </datalist>
+                        <small id="info_pengembalian" class="info-pengembalian" style="display: none;"></small>
                     </div>
 
                     <hr style="border: 0; border-top: 1px dashed #ccc; margin: 20px 0 20px 0;">
 
-                    <!-- OPSI 1: JIKA PEMINJAMAN/PEMASUKAN (PILIH BARANG TERSEDIA) -->
+                    <!-- OPSI JIKA PEMINJAMAN/PEMASUKAN (PILIH BARANG TERSEDIA) -->
                     <div id="grup_barang_tersedia">
                         <div class="form-group">
                             <label>Pilih Barang (Dari Database)</label>
-                            <select name="id_barang_tersedia" id="input_barang_tersedia" class="form-control">
+                            <select name="id_barang_tersedia" id="input_barang_tersedia" class="form-control" onchange="sinkronJumlahPengembalian()">
                                 <option value="" disabled selected>-- Pilih Barang Tersedia --</option>
                                 <?php
                                 $q_barang = mysqli_query($koneksi, "SELECT * FROM barang");
@@ -458,7 +516,7 @@
                     <!-- Kuantitas selalu tampil di semua jenis transaksi -->
                     <div class="form-group" style="width: 30%;">
                         <label>Kuantitas / Jumlah</label>
-                        <input type="number" name="kuantitas" class="form-control" min="1" placeholder="Misal: 5" required>
+                        <input type="number" name="kuantitas" id="input_kuantitas" class="form-control" min="1" placeholder="Misal: 5" required>
                     </div>
 
                     <button type="submit" name="simpan_transaksi" class="btn-submit">Simpan Transaksi Pendataan</button>
@@ -525,7 +583,85 @@
             }
         }
         
-        window.onload = ubahTampilanForm;
+        window.onload = function () { ubahTampilanForm(); aturModePengembalian(false); };
+
+        // ===== FITUR PENGEMBALIAN: isi otomatis barang & jumlah dari nama peminjam =====
+        var dataPinjam = {};
+        (<?php echo json_encode(array_values($pinjaman_aktif), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT); ?>).forEach(function (p) {
+            dataPinjam[p.nama.trim().toLowerCase()] = p;
+        });
+        var pinjamanTerpilih = null; // data pinjaman milik nama yang sedang diketik
+
+        function aturModePengembalian(tampilkanPeringatan) {
+            var jenis       = document.getElementById("jenis_transaksi").value;
+            var inpPenerima = document.getElementById("input_penerima");
+            var selBarang   = document.getElementById("input_barang_tersedia");
+            var inpQty      = document.getElementById("input_kuantitas");
+            var info        = document.getElementById("info_pengembalian");
+
+            // Reset ke kondisi normal: semua barang bisa dipilih, jumlah tanpa batas
+            pinjamanTerpilih = null;
+            for (var i = 0; i < selBarang.options.length; i++) {
+                selBarang.options[i].disabled = (selBarang.options[i].value === "");
+            }
+            inpQty.removeAttribute("max");
+            info.style.display = "none";
+
+            // Fitur ini hanya untuk jenis Pemasukan (Pengembalian)
+            if (jenis !== "Pemasukan") {
+                inpPenerima.removeAttribute("list");
+                return;
+            }
+            inpPenerima.setAttribute("list", "daftar_peminjam");
+
+            var nama = inpPenerima.value.trim().toLowerCase();
+            if (nama === "") return;
+
+            var data = dataPinjam[nama];
+            if (!data) {
+                if (tampilkanPeringatan) {
+                    info.className = "info-pengembalian kosong";
+                    info.textContent = "Tidak ada pinjaman aktif atas nama ini.";
+                    info.style.display = "block";
+                }
+                return;
+            }
+
+            pinjamanTerpilih = data;
+            var dipinjam = {};
+            data.barang.forEach(function (b) { dipinjam[b.id] = b.sisa; });
+
+            // Hanya barang yang sedang dipinjam orang tersebut yang bisa dipilih
+            for (var j = 0; j < selBarang.options.length; j++) {
+                selBarang.options[j].disabled = !(selBarang.options[j].value in dipinjam);
+            }
+            // Pilih barang otomatis (kalau pilihan sekarang bukan barang pinjamannya)
+            if (!(selBarang.value in dipinjam)) selBarang.value = data.barang[0].id;
+            sinkronJumlahPengembalian();
+
+            var daftar = data.barang.map(function (b) { return b.nama + " (" + b.sisa + ")"; }).join(", ");
+            info.className = "info-pengembalian";
+            info.textContent = "Sedang meminjam: " + daftar + (data.barang.length > 1 ? ". Pilih barang yang dikembalikan." : ".");
+            info.style.display = "block";
+        }
+
+        // Isi jumlah otomatis sesuai sisa pinjaman barang yang dipilih
+        function sinkronJumlahPengembalian() {
+            if (!pinjamanTerpilih) return;
+            var selBarang = document.getElementById("input_barang_tersedia");
+            var inpQty    = document.getElementById("input_kuantitas");
+            for (var i = 0; i < pinjamanTerpilih.barang.length; i++) {
+                if (pinjamanTerpilih.barang[i].id === selBarang.value) {
+                    inpQty.value = pinjamanTerpilih.barang[i].sisa;
+                    inpQty.max   = pinjamanTerpilih.barang[i].sisa;
+                    break;
+                }
+            }
+        }
+
+        var inpNamaPenerima = document.getElementById("input_penerima");
+        inpNamaPenerima.addEventListener("input",  function () { aturModePengembalian(false); });
+        inpNamaPenerima.addEventListener("change", function () { aturModePengembalian(true); });
 
         // Fade out sebelum pindah halaman (navbar)
         document.addEventListener('click', function (e) {
@@ -538,12 +674,12 @@
             if (a.origin !== location.origin) return;
             e.preventDefault();
             document.querySelector('.main-content').classList.add('fade-out');
-            setTimeout(function () { location.href = a.href; }, 300);
+            setTimeout(function () { location.href = a.href; }, 250);
         });
         window.addEventListener('pageshow', function (e) {
             if (e.persisted) document.querySelector('.main-content').classList.remove('fade-out');
         });
     </script>
-
+    <?php include '../logout.php'; ?>
 </body>
 </html>

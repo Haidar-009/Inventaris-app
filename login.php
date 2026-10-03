@@ -64,8 +64,14 @@
     // Memanggil method untuk mengecek session
     $auth->checkSession();
 
+    // Variabel untuk pesan error dan menyimpan username agar tidak perlu diketik ulang
+    $pesan_error = '';
+    $username_lama = '';
+
     // Jika tombol login ditekan di form HTML
     if(isset($_POST['login'])) {
+        $username_lama = trim($_POST['username']);
+
         // Menjalankan method prosesLogin dan menyimpan hasilnya (true/false)
         $status_login = $auth->prosesLogin($_POST['username'], $_POST['password']);
     
@@ -73,17 +79,14 @@
         if($status_login) {
             // CEK ROLE DISINI SEBELUM PINDAH HALAMAN
             if($_SESSION['role'] == 'wakasek') {
-                echo "<script>window.location.href = 'wakasek.php';</script>";
+                header("Location: wakasek.php");
             } else {
-                echo "<script>window.location.href = 'index.php';</script>";
+                header("Location: index.php");
             }
             exit();
         } else {
-            echo "<script>
-                    alert('Username atau Password salah!');
-                    window.location.href = 'login.php';
-                </script>";
-            exit();
+            // Tidak ada alert() dan tidak redirect: cukup isi pesan, tampil di dalam kartu
+            $pesan_error = 'Username atau password salah. Silakan coba lagi.';
         }
     }
 ?>
@@ -120,7 +123,7 @@
             background: rgba(255, 255, 255, 0.1); 
             border: 1px solid rgba(255, 255, 255, 0.2); 
             backdrop-filter: blur(15px); 
-            webkit-backdrop-filter: blur(15px); 
+            -webkit-backdrop-filter: blur(15px); 
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.3); 
             color: #fff; 
             border-radius: 15px; 
@@ -131,6 +134,40 @@
             font-size: 36px; 
             text-align: center; 
             margin-bottom: 30px; 
+        }
+
+        /* ===== PESAN ERROR DI DALAM KARTU ===== */
+        .alert-error {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(239, 68, 68, 0.25);
+            border: 1px solid rgba(252, 165, 165, 0.7);
+            color: #fff1f2;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            margin-bottom: 20px;
+            animation: geser 0.4s ease;
+        }
+
+        .alert-error i {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        /* Efek bergetar singkat supaya pengguna sadar ada error */
+        @keyframes geser {
+            0%, 100% { transform: translateX(0); }
+            20%      { transform: translateX(-8px); }
+            40%      { transform: translateX(8px); }
+            60%      { transform: translateX(-5px); }
+            80%      { transform: translateX(5px); }
+        }
+
+        /* Input yang bermasalah diberi border merah lembut */
+        .input-box.error input {
+            border-color: rgba(252, 165, 165, 0.9);
         }
 
         .wrapper .input-box { 
@@ -150,6 +187,10 @@
             font-size: 16px; 
             color: #fff; 
             padding: 20px 45px 20px 20px; 
+        }
+
+        .input-box input:focus {
+            border-color: #fff;
         }
 
         .input-box input::placeholder { 
@@ -191,19 +232,29 @@
     <div class="wrapper">
         <form action="" method="POST">
             <h1>Login</h1>
+
+            <?php if($pesan_error != '') { ?>
+                <div class="alert-error" role="alert">
+                    <i class='bx bxs-error-circle'></i>
+                    <span><?php echo htmlspecialchars($pesan_error, ENT_QUOTES, 'UTF-8'); ?></span>
+                </div>
+            <?php } ?>
             
-            <div class="input-box">
-                <input type="text" name="username" placeholder="Username" required>
+            <div class="input-box <?php echo $pesan_error != '' ? 'error' : ''; ?>">
+                <input type="text" name="username" placeholder="Username"
+                       value="<?php echo htmlspecialchars($username_lama, ENT_QUOTES, 'UTF-8'); ?>"
+                       <?php echo $pesan_error == '' ? 'autofocus' : ''; ?> required>
                 <i class='bx bxs-user'></i>
             </div>
             
-            <div class="input-box">
-                <input type="password" name="password" placeholder="Password" required>
+            <div class="input-box <?php echo $pesan_error != '' ? 'error' : ''; ?>">
+                <input type="password" name="password" placeholder="Password"
+                       <?php echo $pesan_error != '' ? 'autofocus' : ''; ?> required>
                 <i class='bx bxs-lock-alt'></i>
             </div>
             
             <button type="submit" name="login" class="btn">Login</button>
-            <marquee behavior="" direction="left"><p>Haidar Saefullah © 2026</p></marquee>
+            <marquee behavior="" direction="left"><p>Haidar Saefullah ©2026</p></marquee>
             
         </form>
     </div>

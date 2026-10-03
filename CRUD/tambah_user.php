@@ -395,8 +395,9 @@
                 <a href="update.php" title="Update Data"><i class='bx bx-cube'></i><span>Update</span></a>
                 <a href="tambah_user.php" class="active" title="Tambah User"><i class='bx bx-user-plus'></i><span>Tambah User</span></a>
             </div>
-            <a href="../logout.php" class="logout" title="Logout" onclick="return confirm('Yakin ingin keluar?')">
+            <a href="../logout.php" class="logout" title="Logout" data-logout data-no-fade>
                 <i class='bx bx-log-out'></i>
+                 <span>Logout</span>
             </a>
         </div>
 
@@ -420,5 +421,6 @@
             </form>
         </div>
     </div>
+    <?php include '../logout.php'; ?>
 </body>
 </html>
